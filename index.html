@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Ujian - SMAN 1 Banda Aceh</title>
+    <!-- Menggunakan Tailwind CSS untuk styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Mencegah seleksi teks untuk keamanan tambahan */
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+        }
+        
+        /* Memastikan iframe memenuhi layar penuh */
+        #exam-frame {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+
+        /* Sembunyikan elemen jika ujian diblokir */
+        .blur-content {
+            filter: blur(10px);
+            pointer-events: none;
+        }
+
+        /* Custom scrollbar untuk daftar ujian */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans h-screen w-screen overflow-hidden">
+
+    <!-- HALAMAN AWAL (SEBELUM UJIAN) -->
+    <div id="start-screen" class="flex flex-col items-center justify-center h-full w-full bg-slate-50 absolute z-50 p-4 overflow-y-auto">
+        <div class="max-w-3xl w-full text-center p-6 md:p-8 bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col my-auto">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRU4aWS0JTndILtQ285YBV_geXCV5LlJIn5ZA&s" alt="Logo Sekolah" class="h-24 mx-auto mb-3 drop-shadow-md rounded-lg" onerror="this.style.display='none'">
+            <h1 class="text-3xl font-bold text-blue-800">Portal Ujian CBT</h1>
+            <h2 class="text-xl font-semibold text-gray-600 mb-4">SMAN 1 Banda Aceh</h2>
+            
+            <div class="bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 p-4 text-left rounded-r mb-6 shadow-sm">
+                <p class="font-bold text-sm">⚠️ Tata Tertib Ujian Penting:</p>
+                <ul class="list-disc ml-5 mt-1 text-xs space-y-0.5 text-slate-700">
+                    <li>Ujian wajib menggunakan mode Layar Penuh (Fullscreen).</li>
+                    <li>Dilarang membuka tab baru, keluar dari browser, atau beralih ke aplikasi lain.</li>
+                    <li>Sistem mendeteksi aktivitas keluar layar secara otomatis dengan batas maksimal 3 kali pelanggaran.</li>
+                </ul>
+            </div>
+
+            <!-- Daftar Mata Pelajaran Dinamis dari Spreadsheet -->
+            <div class="mb-2 text-left">
+                <h3 class="text-lg font-bold text-slate-700 mb-3 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    Pilih Mata Pelajaran Tersedia:
+                </h3>
+                
+                <!-- Container list ujian dengan scroll jika banyak -->
+                <div id="exams-container" class="space-y-3 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+                    <div class="text-center py-6 text-slate-500 animate-pulse">
+                        ⏳ Sedang mengambil daftar ujian dari server...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WADAH GOOGLE FORM (SAAT UJIAN BERLANGSUNG) -->
+    <div id="exam-container" class="hidden h-full w-full absolute top-0 left-0 bg-white z-10">
+        <iframe id="exam-frame" src="about:blank" allowfullscreen>Memuat…</iframe>
+    </div>
+
+    <!-- TIMER MENGAMBANG SAAT UJIAN -->
+    <div id="floating-timer" class="hidden fixed top-6 right-6 bg-white px-5 py-3 rounded-xl shadow-2xl border-4 border-red-500 z-[60] flex items-center space-x-3 pointer-events-none">
+        <svg class="w-8 h-8 text-red-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <div class="flex flex-col">
+            <span class="text-xs font-bold text-gray-500 uppercase">Sisa Waktu</span>
+            <span id="time-remaining" class="text-2xl font-black font-mono text-red-600 leading-none">00:00:00</span>
+        </div>
+    </div>
+
+    <!-- OVERLAY PERINGATAN PELANGGARAN -->
+    <div id="warning-screen" class="hidden flex flex-col items-center justify-center h-full w-full bg-red-900 bg-opacity-95 absolute top-0 left-0 z-[100] text-white">
+        <div class="max-w-md text-center p-8 bg-red-800 rounded-xl shadow-2xl border-2 border-red-500">
+            <svg class="w-20 h-20 mx-auto text-red-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <h2 class="text-3xl font-bold mb-4">PELANGGARAN TERDETEKSI!</h2>
+            <p id="warning-message" class="text-lg mb-4 text-red-200">Anda telah keluar dari layar ujian atau membuka aplikasi lain.</p>
+            
+            <div class="bg-red-950 p-4 rounded-lg mb-6">
+                <p class="text-xl font-mono text-red-400">Total Pelanggaran: <span id="violation-count" class="font-bold text-white text-2xl">0</span> / 3</p>
+            </div>
+
+            <button id="resume-btn" class="bg-white text-red-800 hover:bg-gray-200 font-bold py-3 px-6 rounded shadow transition duration-200">
+                Kembali ke Layar Penuh & Lanjutkan Ujian
+            </button>
+        </div>
+    </div>
+
+    <!-- OVERLAY BLOKIR PERMANEN -->
+    <div id="blocked-screen" class="hidden flex flex-col items-center justify-center h-full w-full bg-black absolute top-0 left-0 z-[1000] text-white">
+        <div class="max-w-md text-center p-8">
+            <svg class="w-24 h-24 mx-auto text-red-600 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+            <h2 class="text-4xl font-bold text-red-500 mb-4">UJIAN DIBLOKIR</h2>
+            <p class="text-xl text-gray-300 mb-4">Anda telah melakukan pelanggaran lebih dari batas maksimal (3 kali).</p>
+            <p class="text-md text-gray-400">Silakan melapor kepada Pengawas Ujian atau Proktor SMAN 1 Banda Aceh untuk tindak lanjut.</p>
+        </div>
+    </div>
+
+    <!-- OVERLAY WAKTU HABIS -->
+    <div id="timeout-screen" class="hidden flex flex-col items-center justify-center h-full w-full bg-black absolute top-0 left-0 z-[1000] text-white">
+        <div class="max-w-md text-center p-8">
+            <svg class="w-24 h-24 mx-auto text-yellow-500 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <h2 class="text-4xl font-bold text-yellow-400 mb-4">WAKTU HABIS!</h2>
+            <p class="text-xl text-gray-300 mb-4">Waktu pelaksanaan ujian telah selesai.</p>
+            <p class="text-md text-gray-400">Silakan lapor kepada Pengawas Ujian untuk langkah selanjutnya.</p>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const startScreen = document.getElementById('start-screen');
+        const examContainer = document.getElementById('exam-container');
+        const warningScreen = document.getElementById('warning-screen');
+        const blockedScreen = document.getElementById('blocked-screen');
+        const timeoutScreen = document.getElementById('timeout-screen');
+        const resumeBtn = document.getElementById('resume-btn');
+        const violationCountDisplay = document.getElementById('violation-count');
+        const warningMessageDisplay = document.getElementById('warning-message');
+        const examFrame = document.getElementById('exam-frame');
+        
+        // Timer Elements
+        const floatingTimer = document.getElementById('floating-timer');
+        const timeRemainingDisplay = document.getElementById('time-remaining');
+        
+        // Element Sinkronisasi Data
+        const examsContainer = document.getElementById('exams-container');
+
+        // State variables
+        let isExamActive = false;
+        let violationCount = 0;
+        const MAX_VIOLATIONS = 3;
+        
+        // State Ujian dari Spreadsheet
+        let examsList = [];
+        let selectedExam = null;
+        let checkTimeInterval = null;
+
+        // --- FUNGSI AMBIL DATA DARI SPREADSHEET ---
+        const SHEET_ID = '1rQ1NR8-ldvEEUBEXSkqJgaIZaYRPypWDbpvXoMd6yKo';
+        const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+
+        async function fetchExamData() {
+            try {
+                const response = await fetch(SHEET_URL);
+                const text = await response.text();
+                
+                // Menghapus wrapper fungsi dari response gviz Google
+                const jsonString = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+                const data = JSON.parse(jsonString);
+                
+                // Mengambil data dari baris pertama (Index 0 adalah row pertama setelah header)
+                if (data.table.rows.length === 0) throw new Error("Spreadsheet kosong");
+                
+                const rows = data.table.rows;
+                examsList = [];
+
+                // Parsing seluruh baris ujian yang ada di spreadsheet
+                rows.forEach((r, idx) => {
+                    const row = r.c;
+                    const name = row[0] && row[0].v ? row[0].v : '';
+                    const link = row[1] && row[1].v ? row[1].v : '';
+                    const startStr = row[2] ? (row[2].f || row[2].v) : ''; 
+                    const endStr = row[3] ? (row[3].f || row[3].v) : '';
+
+                    // Hanya masukkan ujian yang memiliki nama dan link form valid
+                    if (name && link) {
+                        examsList.push({
+                            id: idx,
+                            name: name,
+                            url: link,
+                            startStr: startStr,
+                            endStr: endStr,
+                            startTime: new Date(startStr).getTime(),
+                            endTime: new Date(endStr).getTime()
+                        });
+                    }
+                });
+
+                if (examsList.length === 0) throw new Error("Tidak ada ujian valid");
+
+                renderExams();
+                
+                // Jalankan interval pembaruan status & timer setiap detik
+                checkTimeInterval = setInterval(updateAllTimers, 1000);
+                updateAllTimers(); // Pemanggilan instan pertama kali
+
+            } catch (err) {
+                console.error("Gagal mengambil data spreadsheet:", err);
+                examsContainer.innerHTML = `
+                    <div class="text-center py-6 text-red-600 bg-red-50 rounded-lg p-4 border border-red-200">
+                        <p class="font-bold">❌ Gagal memuat jadwal ujian.</p>
+                        <p class="text-xs mt-1">Pastikan Spreadsheet Anda diatur publik "Siapa saja dengan link dapat melihat" dan format waktunya benar.</p>
+                        <button onclick="fetchExamData()" class="mt-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2 px-4 rounded transition">Coba Muat Ulang</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Fungsi membuat elemen kartu ujian di HTML
+        function renderExams() {
+            examsContainer.innerHTML = '';
+            
+            examsList.forEach(exam => {
+                // Pastikan format URL menyertakan parameter embedded=true
+                let formUrl = exam.url;
+                if (!formUrl.includes('embedded=true')) {
+                    formUrl += (formUrl.includes('?') ? '&' : '?') + 'embedded=true';
+                }
+                exam.url = formUrl;
+
+                const card = document.createElement('div');
+                card.className = "p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-blue-300 transition-all shadow-sm";
+                card.id = `exam-card-${exam.id}`;
+                
+                card.innerHTML = `
+                    <div class="text-left">
+                        <h4 class="font-bold text-slate-800 text-lg leading-tight">${exam.name}</h4>
+                        <div class="text-xs text-slate-500 mt-1 space-y-0.5">
+                            <p class="flex items-center">
+                                <svg class="w-3.5 h-3.5 mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                Mulai: <span class="font-semibold text-slate-600 ml-1">${exam.startStr}</span>
+                            </p>
+                            <p class="flex items-center">
+                                <svg class="w-3.5 h-3.5 mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Selesai: <span class="font-semibold text-slate-600 ml-1">${exam.endStr}</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <button id="btn-exam-${exam.id}" onclick="selectAndStartExam(${exam.id})" class="w-full md:w-auto px-5 py-2.5 rounded-lg text-sm font-bold text-white transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 flex items-center justify-center">
+                            Memeriksa...
+                        </button>
+                    </div>
+                `;
+                examsContainer.appendChild(card);
+            });
+        }
+
+        // Fungsi memperbarui status, countdown, dan tombol di semua mata pelajaran
+        function updateAllTimers() {
+            const now = new Date().getTime();
+
+            // Fungsi helper pemformatan milidetik ke HH:MM:SS
+            function formatTime(ms) {
+                const h = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+                const s = Math.floor((ms % (1000 * 60)) / 1000);
+                return String(h).padStart(2, '0') + ":" + String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0');
+            }
+
+            examsList.forEach(exam => {
+                const btn = document.getElementById(`btn-exam-${exam.id}`);
+                if (!btn) return;
+
+                if (now < exam.startTime) {
+                    // Belum Mulai
+                    btn.disabled = true;
+                    btn.className = "w-full md:w-auto px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-slate-400 cursor-not-allowed shadow-md";
+                    btn.innerText = `⏳ Mulai dalam ${formatTime(exam.startTime - now)}`;
+                } else if (now > exam.endTime) {
+                    // Sudah Selesai
+                    btn.disabled = true;
+                    btn.className = "w-full md:w-auto px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-red-500 cursor-not-allowed shadow-md opacity-70";
+                    btn.innerText = "⛔ Selesai";
+
+                    // Skenario: Jika ujian ini sedang dikerjakan siswa dan waktu habis
+                    if (isExamActive && selectedExam && selectedExam.id === exam.id) {
+                        forceStopExam();
+                    }
+                } else {
+                    // Berlangsung / Aktif
+                    btn.disabled = false;
+                    btn.className = "w-full md:w-auto px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95 cursor-pointer shadow-md focus:ring-blue-500";
+                    btn.innerText = "🚀 Mulai Sekarang";
+                }
+            });
+
+            // Update timer mengambang jika ada ujian yang sedang aktif berlangsung
+            if (isExamActive && selectedExam) {
+                const remaining = selectedExam.endTime - now;
+                if (remaining > 0) {
+                    timeRemainingDisplay.innerText = formatTime(remaining);
+                } else {
+                    forceStopExam();
+                }
+            }
+        }
+
+        // Fungsi menghentikan paksa ujian jika waktu habis
+        function forceStopExam() {
+            isExamActive = false;
+            examContainer.classList.add('hidden');
+            floatingTimer.classList.add('hidden');
+            warningScreen.classList.add('hidden');
+            
+            // Tampilkan overlay waktu habis
+            timeoutScreen.classList.remove('hidden');
+            examFrame.src = "about:blank"; // Bersihkan frame
+            
+            // Keluar dari layar penuh jika memungkinkan
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(err => console.log(err));
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            }
+        }
+
+        // Fungsi untuk memilih salah satu mata pelajaran dan memicu mode ujian
+        function selectAndStartExam(id) {
+            const exam = examsList.find(e => e.id === id);
+            if (!exam) return;
+
+            selectedExam = exam;
+            startExam();
+        }
+
+        // Jalankan fetch saat halaman dimuat
+        window.addEventListener('DOMContentLoaded', fetchExamData);
+
+
+        // --- FUNGSI UTAMA ---
+
+        // Fungsi untuk memulai ujian & meminta layar penuh
+        async function startExam() {
+            if (!selectedExam) return;
+
+            try {
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) {
+                    await elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) { /* Safari */
+                    await elem.webkitRequestFullscreen();
+                } else if (elem.msRequestFullscreen) { /* IE11 */
+                    await elem.msRequestFullscreen();
+                }
+                
+                // Masukkan URL Google Form ujian yang terpilih ke iframe
+                if (examFrame.src === "about:blank" || examFrame.src === window.location.href) {
+                    examFrame.src = selectedExam.url;
+                }
+
+                // Jika berhasil masuk fullscreen, tampilkan form dan timer mengambang
+                startScreen.classList.add('hidden');
+                examContainer.classList.remove('hidden');
+                floatingTimer.classList.remove('hidden');
+                isExamActive = true;
+                
+            } catch (error) {
+                alert("Gagal masuk ke mode Fullscreen. Pastikan browser Anda mengizinkannya.");
+                console.error(error);
+            }
+        }
+
+        // Fungsi untuk menangani pelanggaran
+        function triggerViolation(reason) {
+            if (!isExamActive) return; // Jangan hitung jika ujian belum aktif
+            if (violationCount >= MAX_VIOLATIONS) return; // Sudah terblokir
+
+            // Sembunyikan iframe agar tidak bisa dicontek
+            examContainer.classList.add('hidden');
+            floatingTimer.classList.add('hidden'); // Sembunyikan timer saat layar peringatan
+            
+            violationCount++;
+            violationCountDisplay.innerText = violationCount;
+            
+            // Set pesan alasan spesifik
+            let msg = "Anda telah keluar dari layar ujian.";
+            if (reason === 'visibility') msg = "Anda membuka tab atau aplikasi lain.";
+            if (reason === 'fullscreen') msg = "Anda keluar dari mode layar penuh (Fullscreen).";
+            
+            warningMessageDisplay.innerText = msg;
+
+            if (violationCount >= MAX_VIOLATIONS) {
+                // Blokir Permanen
+                isExamActive = false;
+                warningScreen.classList.add('hidden');
+                blockedScreen.classList.remove('hidden');
+                // Hapus form dari DOM agar tidak bisa diakses via console
+                examFrame.src = "about:blank"; 
+            } else {
+                // Tampilkan Peringatan
+                warningScreen.classList.remove('hidden');
+                isExamActive = false; // Pause status ujian
+            }
+        }
+
+        // Fungsi kembali ke ujian setelah peringatan
+        async function resumeExam() {
+            try {
+                const elem = document.documentElement;
+                if (elem.requestFullscreen) {
+                    await elem.requestFullscreen();
+                } else if (elem.webkitRequestFullscreen) {
+                    await elem.webkitRequestFullscreen();
+                }
+                
+                // Delay sedikit untuk menghindari deteksi trigger ganda saat transisi
+                setTimeout(() => {
+                    warningScreen.classList.add('hidden');
+                    examContainer.classList.remove('hidden');
+                    floatingTimer.classList.remove('hidden'); // Munculkan kembali timer
+                    isExamActive = true;
+                }, 500);
+
+            } catch (error) {
+                alert("Anda harus mengizinkan mode Fullscreen untuk melanjutkan.");
+            }
+        }
+
+
+        // --- EVENT LISTENERS (ANTI-CHEAT DETECTORS) ---
+
+        // 2. Tombol Lanjut (Setelah Pelanggaran)
+        resumeBtn.addEventListener('click', resumeExam);
+
+        // 3. Deteksi Perubahan Fullscreen (Fullscreen API)
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && isExamActive) {
+                triggerViolation('fullscreen');
+            }
+        });
+        // Untuk kompatibilitas Safari
+        document.addEventListener('webkitfullscreenchange', () => {
+            if (!document.webkitFullscreenElement && isExamActive) {
+                triggerViolation('fullscreen');
+            }
+        });
+
+        // 4. Deteksi Pindah Tab (Page Visibility API)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isExamActive) {
+                triggerViolation('visibility');
+            }
+        });
+
+        // Optional: Cegah klik kanan (context menu)
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        // Optional: Cegah beberapa shortcut keyboard (F12, Ctrl+C, Ctrl+V dll)
+        document.addEventListener('keydown', (e) => {
+            if (isExamActive) {
+                // Blokir F12 (DevTools)
+                if (e.key === 'F12') e.preventDefault();
+                // Blokir Alt+Tab / Cmd+Tab biasanya ditangani oleh sistem OS
+                // Blokir Ctrl+C, Ctrl+V, Ctrl+R
+                if (e.ctrlKey || e.metaKey) {
+                    const blockKeys = ['c', 'v', 'r', 'p', 's'];
+                    if (blockKeys.includes(e.key.toLowerCase())) {
+                        e.preventDefault();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
