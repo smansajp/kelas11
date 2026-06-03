@@ -59,6 +59,7 @@
                     <li>Ujian wajib menggunakan mode Layar Penuh (Fullscreen).</li>
                     <li>Dilarang membuka tab baru, keluar dari browser, atau beralih ke aplikasi lain.</li>
                     <li>Sistem mendeteksi aktivitas keluar layar secara otomatis dengan batas maksimal 3 kali pelanggaran.</li>
+                    <li class="text-red-600 font-semibold">Saat sisa waktu 1 menit, segera klik tombol "Kirim" (Submit) di bawah Google Form sebelum sistem mengunci secara otomatis.</li>
                 </ul>
             </div>
 
@@ -81,7 +82,11 @@
 
     <!-- WADAH GOOGLE FORM (SAAT UJIAN BERLANGSUNG) -->
     <div id="exam-container" class="hidden h-full w-full absolute top-0 left-0 bg-white z-10">
-        <iframe id="exam-frame" src="about:blank" allowfullscreen>Memuat…</iframe>
+        <!-- Spanduk Peringatan Sisa Waktu 1 Menit -->
+        <div id="urgent-warning-banner" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white text-center py-3 font-bold text-sm md:text-base z-[70] animate-bounce shadow-md">
+            ⚠️ SISA WAKTU KURANG DARI 1 MENIT! Segera gulir ke bawah Google Form dan klik tombol "KIRIM" / "SUBMIT" sekarang!
+        </div>
+        <iframe id="exam-frame" class="pt-0 transition-all duration-300" src="about:blank" allowfullscreen>Memuat…</iframe>
     </div>
 
     <!-- TIMER MENGAMBANG SAAT UJIAN -->
@@ -126,7 +131,8 @@
             <svg class="w-24 h-24 mx-auto text-yellow-500 mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <h2 class="text-4xl font-bold text-yellow-400 mb-4">WAKTU HABIS!</h2>
             <p class="text-xl text-gray-300 mb-4">Waktu pelaksanaan ujian telah selesai.</p>
-            <p class="text-md text-gray-400">Silakan lapor kepada Pengawas Ujian untuk langkah selanjutnya.</p>
+            <p class="text-md text-gray-400">Sistem telah menutup lembar jawaban Anda secara otomatis untuk mencegah pengisian susulan.</p>
+            <p class="text-sm text-gray-500 mt-4">Silakan lapor kepada Pengawas Ujian di ruang kelas Anda.</p>
         </div>
     </div>
 
@@ -142,9 +148,10 @@
         const warningMessageDisplay = document.getElementById('warning-message');
         const examFrame = document.getElementById('exam-frame');
         
-        // Timer Elements
+        // Timer & Warning Elements
         const floatingTimer = document.getElementById('floating-timer');
         const timeRemainingDisplay = document.getElementById('time-remaining');
+        const urgentWarningBanner = document.getElementById('urgent-warning-banner');
         
         // Element Sinkronisasi Data
         const examsContainer = document.getElementById('exams-container');
@@ -304,6 +311,17 @@
                 const remaining = selectedExam.endTime - now;
                 if (remaining > 0) {
                     timeRemainingDisplay.innerText = formatTime(remaining);
+                    
+                    // Fitur Peringatan 1 Menit Terakhir (60000 milidetik)
+                    if (remaining <= 60000) {
+                        urgentWarningBanner.classList.remove('hidden');
+                        examFrame.classList.add('pt-12'); // Beri ruang agar tidak tertutup banner
+                        floatingTimer.classList.add('top-16'); // Turunkan posisi timer sedikit
+                    } else {
+                        urgentWarningBanner.classList.add('hidden');
+                        examFrame.classList.remove('pt-12');
+                        floatingTimer.classList.remove('top-16');
+                    }
                 } else {
                     forceStopExam();
                 }
@@ -316,10 +334,11 @@
             examContainer.classList.add('hidden');
             floatingTimer.classList.add('hidden');
             warningScreen.classList.add('hidden');
+            urgentWarningBanner.classList.add('hidden');
             
             // Tampilkan overlay waktu habis
             timeoutScreen.classList.remove('hidden');
-            examFrame.src = "about:blank"; // Bersihkan frame
+            examFrame.src = "about:blank"; // Bersihkan frame agar tidak bisa diedit lagi
             
             // Keluar dari layar penuh jika memungkinkan
             if (document.fullscreenElement || document.webkitFullscreenElement) {
@@ -385,6 +404,7 @@
             // Sembunyikan iframe agar tidak bisa dicontek
             examContainer.classList.add('hidden');
             floatingTimer.classList.add('hidden'); // Sembunyikan timer saat layar peringatan
+            urgentWarningBanner.classList.add('hidden');
             
             violationCount++;
             violationCountDisplay.innerText = violationCount;
@@ -432,7 +452,6 @@
                 alert("Anda harus mengizinkan mode Fullscreen untuk melanjutkan.");
             }
         }
-
 
         // --- EVENT LISTENERS (ANTI-CHEAT DETECTORS) ---
 
