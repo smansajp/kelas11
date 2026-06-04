@@ -7,18 +7,35 @@
     <!-- Menggunakan Tailwind CSS untuk styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Mencegah seleksi teks untuk keamanan tambahan */
-        body {
+        /* [PERBAIKAN] Menggunakan height 100% murni untuk mencegah bug touch target bergeser di HP */
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* [PERBAIKAN] Mencegah seleksi teks HANYA di halaman awal, tidak memblokir iframe/form */
+        .no-select {
             user-select: none;
             -webkit-user-select: none;
             -ms-user-select: none;
         }
         
-        /* Memastikan iframe memenuhi layar penuh */
+        /* [PERBAIKAN] Memastikan iframe kompatibel dengan scrolling Safari/iOS & ukurannya presisi */
+        #exam-wrapper {
+            width: 100%;
+            height: 100%;
+            -webkit-overflow-scrolling: touch;
+            overflow-y: auto;
+        }
+
         #exam-frame {
-            width: 100vw;
-            height: 100vh;
+            width: 100%;
+            height: 100%;
             border: none;
+            display: block;
         }
 
         /* Sembunyikan elemen jika ujian diblokir */
@@ -44,10 +61,11 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans h-screen w-screen overflow-hidden">
+<body class="bg-gray-100 text-gray-800 font-sans h-full w-full overflow-hidden">
 
     <!-- HALAMAN AWAL (SEBELUM UJIAN) -->
-    <div id="start-screen" class="flex flex-col items-center justify-center h-full w-full bg-slate-50 absolute z-50 p-4 overflow-y-auto">
+    <!-- [PERBAIKAN] Memindahkan anti-seleksi teks ke class no-select di sini agar tak ganggu Form -->
+    <div id="start-screen" class="no-select flex flex-col items-center justify-center h-full w-full bg-slate-50 absolute z-50 p-4 overflow-y-auto">
         <div class="max-w-3xl w-full text-center p-6 md:p-8 bg-white rounded-2xl shadow-xl border border-slate-100 flex flex-col my-auto">
             <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRU4aWS0JTndILtQ285YBV_geXCV5LlJIn5ZA&s" alt="Logo Sekolah" class="h-24 mx-auto mb-3 drop-shadow-md rounded-lg" onerror="this.style.display='none'">
             <h1 class="text-3xl font-bold text-blue-800">Portal Ujian CBT Kelas XI</h1>
@@ -81,12 +99,15 @@
     </div>
 
     <!-- WADAH GOOGLE FORM (SAAT UJIAN BERLANGSUNG) -->
-    <div id="exam-container" class="hidden h-full w-full absolute top-0 left-0 bg-white z-10">
+    <div id="exam-container" class="hidden h-full w-full absolute top-0 left-0 bg-white z-10 flex flex-col">
         <!-- Spanduk Peringatan Sisa Waktu 1 Menit -->
-        <div id="urgent-warning-banner" class="hidden fixed top-0 left-0 w-full bg-red-600 text-white text-center py-3 font-bold text-sm md:text-base z-[70] animate-bounce shadow-md">
+        <div id="urgent-warning-banner" class="hidden w-full bg-red-600 text-white text-center py-3 font-bold text-sm md:text-base z-[70] animate-bounce shadow-md">
             ⚠️ SISA WAKTU KURANG DARI 1 MENIT! Segera gulir ke bawah Google Form dan klik tombol "KIRIM" / "SUBMIT" sekarang!
         </div>
-        <iframe id="exam-frame" class="pt-0 transition-all duration-300" src="about:blank" allowfullscreen>Memuat…</iframe>
+        <!-- [PERBAIKAN] Menambahkan wrapper khusus untuk kelancaran scrolling di iOS dan Mobile -->
+        <div id="exam-wrapper" class="flex-grow">
+            <iframe id="exam-frame" class="transition-all duration-300" src="about:blank" allowfullscreen>Memuat…</iframe>
+        </div>
     </div>
 
     <!-- TIMER MENGAMBANG SAAT UJIAN -->
